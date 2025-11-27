@@ -3,6 +3,8 @@ from ultralytics import YOLO
 import time
 import math
 import socket
+import json
+from datetime import datetime
 
 # --- 설정 ---
 model = YOLO("fireModel/best.pt")
@@ -13,6 +15,9 @@ last_alert_time = 0
 fire_detected_state = False
 
 TARGET_CLASS = 'fire'
+
+# 이벤트 로그 파일
+EVENT_LOG_FILE = "fire_events.json"
 
 print(f"사용 가능한 클래스: {model.names}")
 print("--- 실시간 화재 감지를 시작합니다 ---")
@@ -97,11 +102,33 @@ try:
         if fire_detected_in_frame:
             print(f"[{time.ctime()}] !!! 화재 감지 !!!")
             
+            # 화재 감지 시 항상 JSON 갱신 (타임스탬프 업데이트)
+            # 이렇게 하면 streamlit의 threshold가 리셋되어 지속 시간이 계속 유지됨
+            confidence_val = float(confidence) if 'confidence' in locals() else 0.0
+            event_data = {
+                "event_type": "fire_detected",
+                "timestamp": datetime.now().isoformat(),
+                "unix_timestamp": current_time,
+                "confidence": confidence_val,
+                "message": "🔥 화재가 감지되었습니다!"
+            }
+            
+            try:
+                with open(EVENT_LOG_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(event_data, f, indent=2, ensure_ascii=False)
+                debug_log_flag = True
+            except Exception as e:
+                print(f"이벤트 저장 오류: {e}")
+            
+            # 알림 쿨다운 관리 (첫 감지 시에만 콘솔 출력)
             if (current_time - last_alert_time) > ALERT_COOLDOWN:
-                print(">>> 알림 조건 충족! (알림 전송 로직 호출)")
+                print(">>> 알림 조건 충족! (첫 감지 또는 쿨다운 만료)")
                 last_alert_time = current_time
             else:
-                print(">>> (알림 쿨다운 시간...)")
+                pass  # 쿨다운 중이지만 JSON은 계속 갱신됨
+        else:
+            # 화재 미감지 - JSON 파일 존재하면 삭제 (선택사항)
+            pass
 
         time.sleep(0.03)  # 약 30 FPS 유지
 
