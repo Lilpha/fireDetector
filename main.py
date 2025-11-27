@@ -2,6 +2,8 @@ import cv2
 from ultralytics import YOLO
 import time
 import math # 바운딩 박스 좌표 계산용
+import os
+from pathlib import Path
 
 # --- 설정 ---
 # 1. 모델 로드 (2단계에서 다운로드한 .pt 파일 경로)
@@ -9,6 +11,10 @@ model = YOLO("best.pt")
 
 # 2. 카메라 설정 (0번 카메라 = 기본 연결된 카메라)
 cap = cv2.VideoCapture(0)
+
+# 3. 프레임 저장 설정
+FRAME_OUTPUT_PATH = "latest_frame.jpg"
+FIRE_DETECTED_PATH = "fire_detected.txt"
 
 # 3. 알림 쿨다운 설정 (초)
 ALERT_COOLDOWN = 30 # 30초에 한 번만 알림
@@ -60,14 +66,23 @@ while True:
                 cv2.putText(frame, label, (x1, y1 - 10), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-    # 4. (시각화) 결과 프레임 보여주기
-    #    (라즈베리 파이에 모니터가 연결되어 있을 경우)
-    cv2.imshow('YOLOv8 Fire Detection', frame)
+    # 4. (시각화) 결과 프레임 저장
+    #    Streamlit에서 읽을 수 있도록 파일로 저장
+    try:
+        cv2.imwrite(FRAME_OUTPUT_PATH, frame)
+    except Exception as e:
+        print(f"프레임 저장 오류: {e}")
 
-    # 5. 화재 감지 여부 및 알림 로직
+    # 5. 화재 감지 상태 파일로 저장
     current_time = time.time()
     if fire_detected_in_frame:
         print(f"[{time.ctime()}] !!! 화재 감지 !!!")
+        # 화재 감지 상태 저장
+        try:
+            with open(FIRE_DETECTED_PATH, 'w') as f:
+                f.write("True")
+        except:
+            pass
         
         # 5-1. 쿨다운 시간이 지났는지 확인
         if (current_time - last_alert_time) > ALERT_COOLDOWN:
@@ -82,6 +97,13 @@ while True:
             last_alert_time = current_time # 마지막 알림 시간 갱신
         else:
             print(">>> (알림 쿨다운 시간...)")
+    else:
+        # 화재 미감지 상태 저장
+        try:
+            with open(FIRE_DETECTED_PATH, 'w') as f:
+                f.write("False")
+        except:
+            pass
 
 
     # 6. 'q' 키를 누르면 종료
