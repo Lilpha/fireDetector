@@ -1,7 +1,7 @@
 {
   "event_type": "fire_detected",
-  "timestamp": "2025-12-02T23:22:43.607854",
-  "unix_timestamp": 1764685363.6076744,
-  "confidence": 0.96,
+  "timestamp": "2025-12-02T23:28:43.063633",
+  "unix_timestamp": 1764685723.0634859,
+  "confidence": 0.57,
   "message": "🔥 화재가 감지되었습니다!"
 }

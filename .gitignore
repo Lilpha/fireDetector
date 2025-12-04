@@ -1,0 +1,9 @@
+# Ignore virtual environment
+fire_env/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore large model files
+yolov8s.pt
