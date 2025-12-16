@@ -104,26 +104,26 @@ try:
         # 3-2. 동물 감지 결과 분석 (스킵된 프레임에서만)
         if animal_results is not None:
             for r in animal_results:
-            boxes = r.boxes
-            for box in boxes:
-                cls_id = int(box.cls[0])
-                class_name = animal_model.names[cls_id]
+                boxes = r.boxes
+                for box in boxes:
+                    cls_id = int(box.cls[0])
+                    class_name = animal_model.names[cls_id]
 
-                # 동물 클래스 확인
-                if class_name.lower() in [c.lower() for c in ANIMAL_CLASSES]:
-                    animal_detected_in_frame = True
-                    detected_animals.append(class_name)
-                    
-                    x1, y1, x2, y2 = box.xyxy[0]
-                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                    
-                    # 동물 감지: 초록색 박스
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    # 동물 클래스 확인
+                    if class_name.lower() in [c.lower() for c in ANIMAL_CLASSES]:
+                        animal_detected_in_frame = True
+                        detected_animals.append(class_name)
+                        
+                        x1, y1, x2, y2 = box.xyxy[0]
+                        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                        
+                        # 동물 감지: 초록색 박스
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                    confidence = math.ceil(box.conf[0] * 100) / 100
-                    label = f"🐾 {class_name} {confidence}"
-                    cv2.putText(frame, label, (x1, y1 - 10), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        confidence = math.ceil(box.conf[0] * 100) / 100
+                        label = f"🐾 {class_name} {confidence}"
+                        cv2.putText(frame, label, (x1, y1 - 10), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         fire_detected_state = fire_detected_in_frame
         animal_detected_state = animal_detected_in_frame

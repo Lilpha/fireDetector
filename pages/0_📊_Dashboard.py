@@ -54,7 +54,15 @@ with col_right:
         st.subheader("✅ 시스템 상태")
         status_indicator = st.empty()
 
+    # 카드 4: Gemini 분석 결과
+    with st.container(border=True):
+        st.subheader("🤖 Gemini AI 분석")
+        gemini_metric = st.empty()
+
 # --- 2. 상태 변수 초기화 ---
+if 'app_start_time' not in st.session_state:
+    st.session_state['app_start_time'] = datetime.now()
+
 fire_start_time = None       # 화재가 처음 감지된 시각
 daily_fire_count = 0         # 오늘 발생한 화재 건수
 was_fire_active = False      # 직전 루프에서의 화재 상태
@@ -86,6 +94,33 @@ while True:
     except:
         pass
     
+    # Gemini 로그 읽기
+    gemini_msg = "**마지막 탐색 시간: -**\n\n시스템 가동됨"
+    try:
+        if os.path.exists("gemini_analysis_log.txt"):
+            with open("gemini_analysis_log.txt", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                if lines:
+                    last_line = lines[-1].strip()
+                    # Parse: [Timestamp] Gemini 분석 결과: Message
+                    if "] Gemini 분석 결과: " in last_line:
+                        parts = last_line.split("] Gemini 분석 결과: ")
+                        if len(parts) > 1:
+                            timestamp_str = parts[0].replace("[", "")
+                            message = parts[1]
+                            
+                            try:
+                                log_dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                                # 앱 시작 이후의 로그만 표시
+                                if 'app_start_time' in st.session_state and log_dt > st.session_state['app_start_time']:
+                                    gemini_msg = f"**[{timestamp_str}]**\n\n{message}"
+                            except:
+                                pass
+    except Exception as e:
+        gemini_msg = f"로그 읽기 오류: {e}"
+    
+    gemini_metric.markdown(gemini_msg)
+
     now = datetime.now()
     
     # [중요] threshold를 10초로 설정

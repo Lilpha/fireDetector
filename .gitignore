@@ -7,3 +7,5 @@ __pycache__/
 
 # Ignore large model files
 yolov8s.pt
+*.mp4
+.env
