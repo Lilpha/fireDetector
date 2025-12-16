@@ -137,18 +137,21 @@ Local URL: http://localhost:8501
 
 ```
 fireDetector/
-├── main.py                    # YOLO 화재 감지 + 소켓 스트리밍 백엔드
+├── main.py                    # YOLO 화재/동물 감지 + 소켓 스트리밍 백엔드
 ├── app.py                     # Streamlit 메인 앱
+├── gemini_analyzer.py         # Google Gemini AI 분석 모듈
 ├── pages/
 │   ├── 0_📊_Dashboard.py      # 실시간 모니터링 대시보드 (핵심 UI)
-│   ├── 1_📷_Camera.py         # 카메라 피드 페이지
-│   └── 2_⚙️_Settings.py       # 설정 페이지
+│   ├── 2_📷_Camera.py         # 카메라 피드 페이지
+│   └── 3_⚙️_Settings.py       # 설정 페이지
 ├── utils/
 │   └── helpers.py             # 소켓 통신, 이벤트 처리 헬퍼 함수
 ├── fireModel/
 │   └── best.pt                # YOLO v8 화재 감지 모델
 ├── fire_env/                  # Python 가상환경
-├── fire_events.json           # 감지 이벤트 로그 (자동 생성)
+├── fire_events.json           # 화재 감지 이벤트 로그
+├── animal_events.json         # 동물 감지 이벤트 로그
+├── gemini_analysis_log.txt    # AI 분석 로그
 └── README.md                  # 이 파일
 ```
 
@@ -159,7 +162,7 @@ fireDetector/
 ### main.py (백엔드 설정)
 ```python
 ALERT_COOLDOWN = 30              # 콘솔 로깅 쿨다운 (초)
-CONFIDENCE_THRESHOLD = 0.5       # YOLO 신뢰도 임계값
+ANIMAL_DETECTION_SKIP = 3        # 동물 감지 프레임 스킵 (성능 최적화)
 ```
 
 ### pages/0_📊_Dashboard.py (프론트엔드 설정)
@@ -183,6 +186,7 @@ Dashboard:
   - daily_fire_count += 1
   - 큰 시계 시작 (00:00:00)
   - 상태: 🚨 화재 발생 (DANGER)
+  - Gemini AI 분석 요청 (비동기)
 ```
 
 ### 2. 화재 지속 중 (Stable High)
@@ -191,6 +195,7 @@ Dashboard:
 - 큰 시계 증가 (0:00:01, 0:00:02, ...)
 - 작은 시계 갱신 (T - 초 계속 변함)
 - 영상 스트림 실시간 처리
+- AI 분석 결과 업데이트
 ```
 
 ### 3. 화재 종료 감지 (Falling Edge)
@@ -224,8 +229,8 @@ Dashboard:
 ```json
 {
   "event_type": "fire_detected",
-  "timestamp": "2025-11-28T14:23:45.123456",
-  "unix_timestamp": 1732804425.123456,
+  "timestamp": "2025-12-17T14:23:45.123456",
+  "unix_timestamp": 1734413025.123456,
   "confidence": 0.92,
   "message": "화재 감지됨"
 }
@@ -269,8 +274,8 @@ fireModel/best.pt가 올바른 위치에 있는지 확인
 - `ultralytics` - YOLO v8 모델
 - `opencv-python (cv2)` - 영상 처리
 - `streamlit` - 웹 대시보드 프레임워크
-- `numpy` / `scipy` - 수치 연산
-- `pillow (PIL)` - 이미지 처리
+- `google-generativeai` - Gemini AI SDK
+- `python-dotenv` - 환경 변수 관리
 
 전체 패키지 목록:
 ```powershell
@@ -281,29 +286,26 @@ pip list
 
 ## 🌳 브랜치 정보
 
-**현재 브랜치**: `develop` (새로운 기능 개발 중)
+**현재 브랜치**: `main` (배포 버전)
 
-### ✨ 최신 업데이트 (develop 브랜치)
+### ✨ 최신 업데이트 (v2.0)
+
+#### 🤖 Gemini AI 통합
+- 화재 감지 시 AI가 상황을 분석하여 위험도와 대처 방안 제시
+- `gemini_analyzer.py` 모듈 추가
+
+#### 🐾 동물 감지 기능
+- 화재뿐만 아니라 반려동물 및 사람 감지 기능 추가
+- `animal_events.json` 로그 기록
 
 #### 📊 듀얼 타이머 시스템
 - **큰 시계**: 화재 지속 시간 (00:00:00 ~ 계속 증가)
 - **작은 시계**: 마지막 감지 시각 T- 형식 (예: T - 5s)
 
-#### 🔄 카운다운 기능 (NEW!)
+#### 🔄 카운다운 기능
 - 화재 이벤트 사라진 후 **10초 카운다운** (T - 10s ~ T - 0s)
 - 상태 표시: 🟡 **화재 감소됨** (황색)
 - 자동 상태 전환: 카운다운 완료 후 ✅ **정상 (Safe)**
-
-#### 🎯 정확한 이벤트 카운팅
-- **State Machine 패턴** 적용
-- Rising Edge: 화재 감지 시작 (+1)
-- Falling Edge: 화재 종료 감지 (카운다운 시작)
-- 중복 계산 방지, 정확한 이벤트 카운트
-
-#### 🚀 성능 개선
-- threshold 10초로 단축: 빠른 상태 반응
-- main.py에서 **매 프레임 JSON 갱신** (지속적 타이머 유지)
-- 소켓 기반 실시간 스트리밍 안정화
 
 ---
 
@@ -312,7 +314,7 @@ pip list
 1. **카메라 선택**: `main.py`에서 `cv2.VideoCapture(0)`을 편집하여 다른 카메라 사용 가능
 2. **감지 임계값 조정**: YOLO 신뢰도 임계값 `CONFIDENCE_THRESHOLD` 수정
 3. **카운다운 시간 변경**: `FALLBACK_DURATION` 값 수정 (단위: 초)
-4. **마지막 감지 저장**: JSON 파일을 외부 DB로 연동 가능
+4. **API 키 관리**: `.env` 파일은 절대 Git에 올리지 마세요.
 
 ---
 
@@ -324,6 +326,6 @@ pip list
 
 ## 👨‍💻 개발자
 
-**최종 수정**: 2025-11-28  
-**상태**: 활발한 개발 중 (develop 브랜치)  
-**주요 기능 완성도**: 95%
+**최종 수정**: 2025-12-17  
+**상태**: 배포 완료 (main 브랜치)  
+**주요 기능 완성도**: 100%
